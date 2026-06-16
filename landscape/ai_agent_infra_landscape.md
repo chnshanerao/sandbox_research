@@ -9,15 +9,16 @@
 
 1. [行业全景图](#一行业全景图)
 2. [Agent 沙箱 / 代码执行](#二agent-沙箱--代码执行)
-3. [云浏览器 / Browser Use 基础设施](#三云浏览器--browser-use-基础设施)
-4. [云电脑 / Computer Use 平台](#四云电脑--computer-use-平台)
-5. [Agent 编排框架 / Runtime](#五agent-编排框架--runtime)
+3. [云浏览器基础设施与 Browser Use](#三云浏览器基础设施与-browser-use)
+4. [云电脑基础设施与 Computer Use 能力](#四云电脑基础设施与-computer-use-能力)
+5. [编排、运行时与沙箱：三层拆解](#五编排运行时与沙箱三层拆解)
 6. [Agent 协议层](#六agent-协议层)
 7. [Agent 可观测性](#七agent-可观测性)
 8. [Agent 安全 / 网关 / Auth](#八agent-安全--网关--auth)
 9. [关键收购与信号](#九关键收购与信号)
 10. [中国市场专题](#十中国市场专题)
 11. [选型指南](#十一选型指南)
+12. [产品架构拆解](#十二产品架构拆解)
 
 ---
 
@@ -27,7 +28,7 @@
                     AI Agent 基础设施栈 (2026)
 ┌─────────────────────────────────────────────────────────────┐
 │                    应用层 / Agent Products                    │
-│  Devin · Manus · Claude Cowork · OpenAI Operator · Cursor   │
+│  Devin · Manus · Claude Cowork · OpenAI Codex · Cursor      │
 ├─────────────────────────────────────────────────────────────┤
 │                    编排层 / Orchestration                     │
 │  LangGraph · CrewAI · AutoGen/AG2 · OpenAI Agents SDK · ADK │
@@ -35,9 +36,13 @@
 │                    协议层 / Protocols                        │
 │  MCP (Anthropic) · A2A (Google) · ACP (IBM) · ASL (蚂蚁)    │
 ├─────────────────────────────────────────────────────────────┤
-│                    执行层 / Runtime & Sandbox                │
+│                    运行时 / Agent Runtime                    │
+│  Local Python · AWS Lambda · 阿里云 FC · K8s Pod · Docker   │
+├─────────────────────────────────────────────────────────────┤
+│                    沙箱层 / Sandbox                          │
 │  E2B · Daytona · Modal · Runloop · CubeSandbox · AgentBay   │
-│  Browserbase · Browser Use · OpenSandbox · AgentCube         │
+│                    云浏览器 / Cloud Browser                  │
+│  Browserbase · Browserless · Steel · Notte                  │
 ├─────────────────────────────────────────────────────────────┤
 │                    可观测性 / Observability                   │
 │  Braintrust · LangSmith · Langfuse · Helicone · Arize       │
@@ -95,38 +100,57 @@
 
 ---
 
-## 三、云浏览器 / Browser Use 基础设施
+## 三、云浏览器基础设施与 Browser Use
 
-AI Agent 需要"眼睛和手"来操作网页，催生了一批云浏览器基础设施。
+> **概念区分：** 云浏览器 = 基础设施（提供 Chromium 实例），Browser Use = AI 能力/框架（AI 自主操控浏览器）。  
+> 类比：云浏览器是"车"，Browser Use 是"会开车的 AI 司机"。
 
-| 平台 | 类型 | Stars | 特色 | 开源 |
-|------|------|-------|------|------|
-| **Browserbase** | 托管云 Chromium | — | Stagehand SDK (Playwright 兼容)，反检测+验证码 | SDK 开源 |
-| **Browser Use** | 自托管浏览器框架 | 25k | 支持任意 LLM，1000+ 社区插件，MIT 协议 | ✅ 完全开源 |
-| **Browserless** | 托管无头浏览器 API | — | 20+ 浏览器方法合并为 1 个 MCP 工具 | SaaS |
-| **Steel** | 云浏览器 API | — | 为 AI Agent 优化的浏览器池 | — |
-| **Notte** | AI 浏览器 | — | 专为 Agent 设计的浏览器接口 | — |
-| **Scrapybara** | 浏览器+沙箱 | — | Desktop+Browser 混合沙箱 | — |
+### 3.1 云浏览器 = 基础设施
 
-**对比维度：**
-- **Browserbase**：商业化最成熟（YC 支持），防检测能力强，适合需要突破反爬的场景
-- **Browser Use**：开源之王（25k Stars），社区生态最好，自托管零成本
-- **Browserless**：上下文窗口最友好（工具定义最精简），适合 Token 敏感场景
+提供远程 Chromium 实例池，Agent 通过 CDP/Playwright 协议连接。
+
+| 平台 | 类型 | 特色 | 开源 |
+|------|------|------|------|
+| **Browserbase** | 托管云 Chromium | Stagehand SDK (Playwright 兼容)，反检测+验证码处理 | SDK 开源 |
+| **Browserless** | 托管无头浏览器 API | 20+ 方法合并为 1 个 MCP 工具，Token 最省 | SaaS |
+| **Steel** | 云浏览器 API | 为 AI Agent 优化的浏览器池 | — |
+| **Notte** | AI 浏览器 | 专为 Agent 设计的浏览器接口 | — |
+
+### 3.2 Browser Use = AI 能力/框架
+
+AI 框架，让 LLM 自主操控浏览器完成任务（搜索、填表、下单等）。Browser Use 框架**消费**云浏览器基础设施。
+
+| 框架 | Stars | 特色 | 与云浏览器的关系 |
+|------|-------|------|-----------------|
+| **Browser Use** | 25k | 支持任意 LLM，1000+ 社区插件，MIT 开源 | 可连接 Browserbase/本地 Chromium |
+| **Stagehand** | — | Browserbase 官方 SDK，Playwright 兼容 | Browserbase 原生客户端 |
+| **Scrapybara** | — | Desktop+Browser 混合沙箱 | 自带浏览器 + 桌面环境 |
+
+### 3.3 关系说明
+
+```
+  Browser Use (AI 框架)          云浏览器 (基础设施)
+  ┌──────────────────┐          ┌──────────────────┐
+  │ LLM 驱动的决策    │          │ 远程 Chromium 池  │
+  │ "点击登录按钮"    │ ──CDP──→ │ 反检测、验证码     │
+  │ "填写搜索框"      │          │ 截图、DOM 访问    │
+  └──────────────────┘          └──────────────────┘
+  消费方                         提供方
+
+  Agent 也可以不用 Browser Use 框架，直接用 Playwright 连接云浏览器。
+  Browser Use 的价值是：让 LLM 自主决定"看哪里、点哪里"，而非写死脚本。
+```
 
 ---
 
-## 四、云电脑 / Computer Use 平台
+## 四、云电脑基础设施与 Computer Use 能力
 
-### AI Lab 的 Computer Use 方案
+> **概念区分：** 云电脑 = 基础设施（提供远程桌面 VM），Computer Use = AI 能力（AI 通过截图+鼠标控制桌面）。  
+> 类比：云电脑是"一台远程的电脑"，Computer Use 是"AI 会操作这台电脑"。
 
-| 厂商 | 产品 | 状态 | 方式 |
-|------|------|------|------|
-| **Anthropic** | Claude Computer Use → Claude Cowork | 活跃 | 屏幕截图 + 鼠标/键盘控制，Agent SDK 封装 |
-| **OpenAI** | Operator / CUA | 2025.8 退役 | CUA 模型仍可通过 API 访问 |
-| **Google** | Project Mariner | 集成 Gemini | 浏览器控制 Agent |
-| **Manus** | 通用 Computer Agent | 活跃 | 中国团队，2025 年初爆红 |
+### 4.1 云电脑 = 基础设施
 
-### 云电脑 → Agent 基础设施的转型
+提供远程桌面虚拟机（Linux/Windows/Android），Agent 可以通过 VNC/RDP 连接。
 
 | 平台 | 传统定位 | AI 转型动作 |
 |------|----------|------------|
@@ -136,7 +160,38 @@ AI Agent 需要"眼睛和手"来操作网页，催生了一批云浏览器基础
 | **Amazon WorkSpaces** | 托管桌面 | 未明确 Agent 定位 |
 | **Computer Agents** | 新创 | 每个 Agent 一台持久化云电脑，$20/月 |
 
-> **结论：** 传统 VDI 厂商尚未集体转向 Agent 基础设施。阿里云无影是全球唯一将云电脑产品明确转型为 Agent Infra 的厂商。新创公司正在填补空白。
+### 4.2 Computer Use = AI 能力
+
+AI 模型通过截屏 + 鼠标/键盘操控来使用电脑，是一种**模型能力**而非基础设施。
+
+| 厂商 | 产品 | 状态 | 实现方式 |
+|------|------|------|---------|
+| **Anthropic** | Claude Computer Use → Claude Cowork | 活跃 | 屏幕截图 + 坐标点击，Agent SDK 封装 |
+| **OpenAI** | Operator / CUA | 2025.8 退役 | CUA 模型仍可通过 API 访问 |
+| **Google** | Project Mariner | 集成 Gemini | 浏览器控制 Agent |
+| **Manus** | 通用 Computer Agent | 活跃 | 中国团队，2025 年初爆红 |
+
+### 4.3 两者的关系
+
+```
+  Computer Use (AI 能力)         云电脑 (基础设施)
+  ┌──────────────────┐          ┌──────────────────┐
+  │ Claude/GPT 模型   │          │ 远程 Ubuntu VM   │
+  │ "看到了登录按钮"   │ ←截图── │ VNC/RDP 连接     │
+  │ "点击 (x=320,     │ ──操控→ │ 4C/7G/99G 资源   │
+  │  y=450)"          │          │ 完整 GUI 桌面    │
+  └──────────────────┘          └──────────────────┘
+  需要模型具备视觉理解            需要计算资源
+
+  Computer Use 需要云电脑作为执行基底。
+  但云电脑不一定用于 Computer Use —— 也可以只跑命令行。
+  
+  AgentBay 是两者结合的典型：
+  - 云电脑基础设施：提供 Linux/Windows/Android VM
+  - Computer Use 能力：提供截屏、点击等 MCP 工具
+```
+
+> **结论：** 传统 VDI 厂商尚未集体转向 Agent 基础设施。阿里云无影是全球唯一将云电脑产品明确转型为 Agent Infra 的厂商。
 
 ### 全栈 Agent 计算平台（Coding Agent）
 
@@ -148,7 +203,13 @@ AI Agent 需要"眼睛和手"来操作网页，催生了一批云浏览器基础
 
 ---
 
-## 五、Agent 编排框架 / Runtime
+## 五、编排、运行时与沙箱：三层拆解
+
+> **这是最容易混淆的三个概念。** 本章严格区分它们。
+
+### 5.1 编排层 (Orchestration) — Agent "决定做什么"
+
+编排层是 Agent 的"大脑"，负责：接收任务 → 推理 → 选择工具 → 调用工具 → 观察结果 → 重复。
 
 | 框架 | Stars | 维护方 | 最适合 | 关键特性 |
 |------|-------|--------|--------|----------|
@@ -160,6 +221,67 @@ AI Agent 需要"眼睛和手"来操作网页，催生了一批云浏览器基础
 | **AgentScope** | — | 阿里通义 | 企业级多 Agent 协作 | ReAct、分布式 Actor、沙箱隔离执行 |
 | **Dify** | 140k | 国产团队 | 可视化 Agent 应用开发 | 工作流+RAG，Docker 一键部署 |
 | **Coze** | — | 字节跳动 | 低门槛 Bot 搭建 | 模板化、插件生态丰富 |
+
+### 5.2 运行时 (Runtime) — Agent "自己的代码跑在哪里"
+
+运行时是 Agent 进程本身运行的计算环境。这是**你自己的代码**（可信的），不是 LLM 生成的代码。
+
+| 运行时类型 | 典型场景 | 特点 |
+|-----------|---------|------|
+| **本地 Python 进程** | 开发调试：`python agent.py` | 零开销，无隔离，开发用 |
+| **云函数 (Serverless)** | AWS Lambda、阿里云 FC | 按量计费，自动扩缩，无状态 |
+| **K8s Pod** | 企业部署 | 可编排，可持久化，适合长运行 Agent |
+| **Docker 容器** | 自托管部署 | 轻量隔离，CI/CD 友好 |
+| **Ona (Gitpod) VM** | OpenAI Codex | 持久化 VM，Agent 运行在沙箱内部 |
+
+> **关键区分：** Runtime 托管的是**你写的 Agent 代码**（编排逻辑、API 调用、状态管理）。  
+> Sandbox 托管的是 **LLM 生成的代码**（不可信，需要隔离执行）。
+
+### 5.3 沙箱 (Sandbox) — Agent "在哪里执行不可信操作"
+
+沙箱是 Agent 工具调用的隔离执行环境。LLM 生成的代码完全不可信，必须在隔离的 VM/容器中执行。
+
+详见第二章「Agent 沙箱 / 代码执行」的完整列表。
+
+### 5.4 三层关系 — 以一次真实调用为例
+
+```
+  用户: "帮我分析这个 CSV 文件"
+  
+  ┌── 编排层 (Orchestration) ──────────────────────────────────┐
+  │  LangGraph / OpenAI Agents SDK / 自研编排逻辑              │
+  │                                                            │
+  │  Step 1: LLM 推理 → "需要写 Python 代码用 pandas 分析"    │
+  │  Step 2: LLM 生成代码 → "import pandas as pd; ..."       │
+  │  Step 3: 调用工具 → tool_call: execute_code(code=...)     │
+  │  Step 4: 收到结果 → LLM 综合回答用户                      │
+  └──────────────────────────┬─────────────────────────────────┘
+                             │ 编排逻辑决定"调用沙箱执行代码"
+  ┌── 运行时 (Runtime) ───────┴────────────────────────────────┐
+  │  Agent 进程跑在 AWS Lambda / K8s Pod / 本地                │
+  │                                                            │
+  │  agent.py 调用 e2b_sdk.sandbox.execute(code)              │
+  │  这行代码是你写的，是可信的                                 │
+  └──────────────────────────┬─────────────────────────────────┘
+                             │ API 调用到沙箱服务
+  ┌── 沙箱 (Sandbox) ────────┴────────────────────────────────┐
+  │  E2B Firecracker microVM / AgentBay Cloud VM              │
+  │                                                            │
+  │  LLM 生成的 pandas 代码在这里执行                          │
+  │  即使代码有 rm -rf / 也不会影响宿主                        │
+  │  执行完毕，沙箱可以销毁                                    │
+  └───────────────────────────────────────────────────────────┘
+```
+
+### 5.5 不同产品的三层组合方式
+
+| 产品 | 编排层 | 运行时 | 沙箱 | 特点 |
+|------|--------|--------|------|------|
+| **Codex (OpenAI)** | OpenAI Agents SDK | Ona (Gitpod) VM | 同 Runtime (合并) | Runtime=Sandbox，Agent 跑在沙箱里 |
+| **Claude Code** | Claude 模型推理 | 本地 CLI 进程 | 无独立沙箱 (或 E2B) | 用权限控制代替隔离 |
+| **Devin** | 自研编排引擎 | 自建云 VM | 同 Runtime (合并) | 三层全自建，Shell+Browser+Editor |
+| **LangGraph + E2B** | LangGraph | K8s Pod | E2B microVM | 三层分离，最灵活 |
+| **AgentRun** | 内置编排 | 阿里云 FC | FC microVM | 平台级产品，三层打包 |
 
 ---
 
@@ -326,6 +448,95 @@ AI Agent 需要"眼睛和手"来操作网页，催生了一批云浏览器基础
 │
 └─ 全栈 Agent 平台 → AgentRun / Dify / Coze
 ```
+
+---
+
+## 十二、产品架构拆解
+
+用三个真实产品说明编排、运行时、沙箱如何组合。
+
+### OpenAI Codex
+
+```
+  用户在 ChatGPT 里说："Fix the failing test in my repo"
+  
+  ┌── ① 编排层 ──────────────────────────────────────────────┐
+  │  OpenAI Agents SDK + 内部编排逻辑                         │
+  │  解析意图 → 规划步骤 → 选择工具 → 管理多轮状态            │
+  └──────────────────────────┬───────────────────────────────┘
+                             ↓
+  ┌── ② 运行时 + ③ 沙箱 (合并) ──────────────────────────────┐
+  │  Ona (原 Gitpod，2026.6 被 OpenAI 收购)                   │
+  │  - Agent 进程本身跑在 Ona VM 里                           │
+  │  - git clone、npm install、pytest 都在同一 VM 执行        │
+  │  - 持久化：关掉浏览器，代码还在                           │
+  └───────────────────────────────────────────────────────────┘
+  
+  关键设计：Runtime = Sandbox (Agent 跑在自己的沙箱里)
+  优点：低延迟（无跨进程 API 调用）
+  代价：OpenAI 花钱收购 Ona 来解决持久化沙箱问题
+```
+
+### Claude Code (你正在使用的)
+
+```
+  你在终端说："帮我修这个 bug"
+  
+  ┌── ① 编排层 ──────────────────────────────────────────────┐
+  │  Claude 模型推理 + 工具调用框架                            │
+  │  系统 prompt 定义行为 → 多步推理 → 权限控制                │
+  └──────────────────────────┬───────────────────────────────┘
+                             ↓
+  ┌── ② 运行时 ──────────────────────────────────────────────┐
+  │  Claude Code CLI 进程 (Node.js)                           │
+  │  跑在你的本地机器 / 或 OpenSandbox 环境                    │
+  │  管理与 Anthropic API 的通信、工具执行                     │
+  └──────────────────────────┬───────────────────────────────┘
+                             ↓
+  ┌── ③ 沙箱 ───────────────────────────────────────────────┐
+  │  【本地模式】无独立沙箱 — 直接操作你的真实文件系统          │
+  │    → 用权限提示 ("是否允许执行?") 代替隔离                 │
+  │  【你当前的环境】OpenSandbox VM — 所有操作被限制在 VM 内   │
+  └───────────────────────────────────────────────────────────┘
+  
+  关键设计：Runtime ≠ Sandbox (分离或无沙箱)
+  优点：灵活，可接入 E2B/Daytona 作为远程沙箱
+  代价：本地模式无隔离，依赖信任和权限控制
+```
+
+### Devin (Cognition, $4.5B)
+
+```
+  用户提交任务："Implement dark mode for the app"
+  
+  ┌── ① 编排层 ──────────────────────────────────────────────┐
+  │  自研多 Agent 编排引擎                                    │
+  │  任务分解 → 并行规划 → 工具编排 → 自动重试                │
+  └──────────────────────────┬───────────────────────────────┘
+                             ↓
+  ┌── ② 运行时 + ③ 沙箱 (合并) ──────────────────────────────┐
+  │  每个任务一台独立 VM                                      │
+  │  ├── Shell (命令行操作)                                   │
+  │  ├── Browser (Chromium，可上网搜 StackOverflow)           │
+  │  └── Editor (VS Code 风格，实时展示改动)                  │
+  │  可同时开多台 VM 并行处理不同任务                          │
+  └───────────────────────────────────────────────────────────┘
+  
+  关键设计：三层全自建，Shell+Browser+Editor 三合一
+  优点：完全控制，用户体验最好
+  代价：最重，估值 $4.5B 对应的就是这套自建基础设施
+```
+
+### 对比总结
+
+| 维度 | Codex | Claude Code | Devin |
+|------|-------|-------------|-------|
+| Runtime 与 Sandbox | 合并 | 分离 | 合并 |
+| 沙箱来源 | 收购 (Ona) | 无 / 外部 (E2B) | 自建 |
+| 持久化 | ✅ | ❌ (依赖本地) | ✅ |
+| Browser 内置 | ❌ | ❌ | ✅ |
+| 成本 | 高 (收购) | 低 (无沙箱) | 最高 (全自建) |
+| 用户体验 | 中 | 灵活 | 最好 |
 
 ---
 
