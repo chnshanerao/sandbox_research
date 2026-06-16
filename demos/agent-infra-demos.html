@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Agent 基础设施 — 分层 Demo 演示</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #0f1117; color: #e1e4e8; line-height: 1.6; }
+
+.header { background: linear-gradient(135deg, #1a1f35 0%, #0d1117 100%); padding: 60px 20px 40px; text-align: center; border-bottom: 1px solid #21262d; }
+.header h1 { font-size: 2.2em; color: #58a6ff; margin-bottom: 10px; }
+.header p { color: #8b949e; font-size: 1.1em; max-width: 700px; margin: 0 auto; }
+
+.stack-diagram { max-width: 900px; margin: 30px auto 0; background: #161b22; border-radius: 12px; padding: 24px; border: 1px solid #30363d; }
+.stack-row { display: flex; align-items: center; margin: 4px 0; border-radius: 6px; overflow: hidden; cursor: pointer; transition: transform 0.15s; }
+.stack-row:hover { transform: scale(1.02); }
+.stack-label { width: 180px; padding: 10px 16px; font-size: 0.85em; font-weight: 600; color: #fff; flex-shrink: 0; }
+.stack-content { flex: 1; padding: 10px 16px; font-size: 0.8em; color: rgba(255,255,255,0.8); background: rgba(0,0,0,0.2); }
+.stack-row[data-layer="app"] .stack-label { background: #8957e5; }
+.stack-row[data-layer="orch"] .stack-label { background: #1f6feb; }
+.stack-row[data-layer="proto"] .stack-label { background: #238636; }
+.stack-row[data-layer="sandbox"] .stack-label { background: #da3633; }
+.stack-row[data-layer="obs"] .stack-label { background: #bf8700; }
+.stack-row[data-layer="auth"] .stack-label { background: #8250df; }
+.stack-row[data-layer="compute"] .stack-label { background: #6e7681; }
+.stack-badge { display: inline-block; background: rgba(255,255,255,0.15); padding: 2px 8px; border-radius: 10px; font-size: 0.75em; margin-left: 6px; }
+
+.container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+
+.demo-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 30px 0; position: sticky; top: 0; background: #0f1117; padding: 15px 0; z-index: 100; border-bottom: 1px solid #21262d; }
+.demo-btn { padding: 8px 18px; border: 1px solid #30363d; background: #161b22; color: #c9d1d9; border-radius: 8px; cursor: pointer; font-size: 0.9em; transition: all 0.2s; }
+.demo-btn:hover { border-color: #58a6ff; color: #58a6ff; }
+.demo-btn.active { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+
+.demo-section { display: none; animation: fadeIn 0.3s; }
+.demo-section.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+.demo-header { margin: 30px 0 20px; }
+.demo-header h2 { font-size: 1.6em; color: #58a6ff; margin-bottom: 8px; }
+.demo-header .layer-tag { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 0.8em; font-weight: 600; }
+
+.explain-box { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 20px; margin: 16px 0; }
+.explain-box h3 { color: #58a6ff; font-size: 1.1em; margin-bottom: 10px; }
+.explain-box p { color: #8b949e; font-size: 0.95em; }
+.explain-box .highlight { color: #f0883e; font-weight: 600; }
+
+.arch-diagram { background: #0d1117; border: 1px solid #30363d; border-radius: 10px; padding: 20px; margin: 16px 0; font-family: 'Menlo', 'Courier New', monospace; font-size: 0.82em; color: #7ee787; white-space: pre; overflow-x: auto; line-height: 1.5; }
+
+.terminal { background: #1a1b26; border-radius: 10px; margin: 16px 0; overflow: hidden; border: 1px solid #30363d; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+.terminal-bar { background: #24283b; padding: 8px 16px; display: flex; align-items: center; gap: 8px; }
+.terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
+.terminal-dot.red { background: #f7768e; }
+.terminal-dot.yellow { background: #e0af68; }
+.terminal-dot.green { background: #9ece6a; }
+.terminal-title { color: #565f89; font-size: 0.8em; margin-left: 8px; font-family: monospace; }
+.terminal-body { padding: 16px; font-family: 'Menlo', 'Courier New', monospace; font-size: 0.8em; line-height: 1.6; white-space: pre-wrap; word-break: break-all; max-height: 600px; overflow-y: auto; color: #a9b1d6; }
+.terminal-body .pass { color: #9ece6a; }
+.terminal-body .fail { color: #f7768e; }
+.terminal-body .warn { color: #e0af68; }
+.terminal-body .info { color: #7aa2f7; }
+.terminal-body .dim { color: #565f89; }
+.terminal-body .title-line { color: #bb9af7; font-weight: bold; }
+
+.key-findings { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin: 16px 0; }
+.key-card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; }
+.key-card .metric { font-size: 2em; font-weight: 700; color: #58a6ff; }
+.key-card .label { color: #8b949e; font-size: 0.85em; margin-top: 4px; }
+
+.product-compare { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.9em; }
+.product-compare th { background: #161b22; color: #58a6ff; padding: 10px; text-align: left; border-bottom: 2px solid #30363d; }
+.product-compare td { padding: 10px; border-bottom: 1px solid #21262d; color: #c9d1d9; }
+.product-compare tr:hover { background: rgba(56,139,253,0.05); }
+
+.footer { text-align: center; padding: 40px 20px; color: #484f58; font-size: 0.85em; border-top: 1px solid #21262d; margin-top: 40px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>AI Agent 基础设施 — 分层 Demo</h1>
+  <p>从沙箱到编排，从协议到可观测性 — 用实际代码演示 Agent 基础设施栈的每一层</p>
+
+  <div class="stack-diagram">
+    <div class="stack-row" data-layer="app"><div class="stack-label">应用层</div><div class="stack-content">Devin · Manus · Claude Code · Codex · Cursor</div></div>
+    <div class="stack-row" data-layer="orch" onclick="showDemo('orch')"><div class="stack-label">编排层 <span class="stack-badge">Demo 02</span></div><div class="stack-content">LangGraph · CrewAI · AutoGen · OpenAI Agents SDK</div></div>
+    <div class="stack-row" data-layer="proto" onclick="showDemo('mcp')"><div class="stack-label">协议层 <span class="stack-badge">Demo 03</span></div><div class="stack-content">MCP (Anthropic) · A2A (Google) · ACP (IBM) · ASL (蚂蚁)</div></div>
+    <div class="stack-row" data-layer="sandbox" onclick="showDemo('sandbox')"><div class="stack-label">沙箱层 <span class="stack-badge">Demo 01</span></div><div class="stack-content">E2B · Daytona · AgentBay · OpenSandbox · CubeSandbox</div></div>
+    <div class="stack-row" data-layer="obs" onclick="showDemo('obs')"><div class="stack-label">可观测性 <span class="stack-badge">Demo 04</span></div><div class="stack-content">Braintrust · LangSmith · Langfuse · Arize</div></div>
+    <div class="stack-row" data-layer="auth" onclick="showDemo('auth')"><div class="stack-label">安全层 <span class="stack-badge">Demo 05</span></div><div class="stack-content">Arcade.dev · ShieldAgent · Okta Agent Gateway</div></div>
+    <div class="stack-row" data-layer="compute"><div class="stack-label">计算层</div><div class="stack-content">Firecracker · gVisor · Kata · WASM · OCI Container</div></div>
+  </div>
+</div>
+
+<div class="container">
+
+<div class="demo-nav">
+  <button class="demo-btn active" onclick="showDemo('sandbox')">01 沙箱层</button>
+  <button class="demo-btn" onclick="showDemo('orch')">02 编排层</button>
+  <button class="demo-btn" onclick="showDemo('mcp')">03 MCP协议</button>
+  <button class="demo-btn" onclick="showDemo('obs')">04 可观测性</button>
+  <button class="demo-btn" onclick="showDemo('auth')">05 安全层</button>
+  <button class="demo-btn" onclick="showDemo('e2e')">07 全栈Agent</button>
+  <button class="demo-btn" onclick="showDemo('arch')">产品架构对比</button>
+</div>
+
+<!-- ========== Demo 01: 沙箱层 ========== -->
+<div class="demo-section active" id="demo-sandbox">
+  <div class="demo-header">
+    <h2>Demo 01: 沙箱层 — AgentBay 云端沙箱</h2>
+    <span class="layer-tag" style="background:#da3633;color:#fff">沙箱层 / Sandbox</span>
+  </div>
+
+  <div class="explain-box">
+    <h3>什么是沙箱？</h3>
+    <p>沙箱 = Agent 执行工具调用的<span class="highlight">隔离环境</span>。LLM 生成的代码完全不可信，必须在隔离的 VM/容器中执行。</p>
+    <p style="margin-top:8px">本 Demo 在 AgentBay（阿里云无影）上创建了一台<span class="highlight">完整的云电脑 VM</span>（4核/7GB/99GB），演示了从创建到销毁的完整生命周期。</p>
+  </div>
+
+  <div class="key-findings">
+    <div class="key-card"><div class="metric">1,624ms</div><div class="label">冷启动耗时（含分配完整 VM）</div></div>
+    <div class="key-card"><div class="metric">50ms</div><div class="label">稳态命令延迟</div></div>
+    <div class="key-card"><div class="metric">88</div><div class="label">预装 MCP 工具数</div></div>
+    <div class="key-card"><div class="metric">4C/7G/99G</div><div class="label">沙箱 VM 规格</div></div>
+  </div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot red"></div>
+      <div class="terminal-dot yellow"></div>
+      <div class="terminal-dot green"></div>
+      <span class="terminal-title">$ python3 demos/01_sandbox/demo_agentbay_sandbox.py</span>
+    </div>
+    <div class="terminal-body"><span class="title-line">======================================================================
+  Demo 01a: 沙箱层 — AgentBay 云端沙箱
+  对应层: 执行层 / Sandbox
+======================================================================</span>
+
+  什么是沙箱？
+  沙箱 = Agent 执行工具调用的隔离环境
+  LLM 生成的代码不可信 → 需要在隔离的 VM/容器中执行
+
+<span class="info">[1] 创建沙箱 (冷启动)</span>
+<span class="dim">----------------------------------------</span>
+  <span class="pass">[OK]</span> Session: s-04pomilkbjfdjiz8v
+  <span class="pass">[OK]</span> 冷启动耗时: <span class="warn">1624ms</span>
+  说明: AgentBay 分配完整云电脑 VM (4C/7G/99G)
+
+<span class="info">[2] 隔离验证 — 沙箱内 vs 宿主机</span>
+<span class="dim">----------------------------------------</span>
+  内核版本 : <span class="pass">5.15.0-125-generic</span>  (247ms)   ← 沙箱内核 ≠ 宿主内核
+  主机名   : iZbp1eoksk549kors65ewuZ  (50ms)   ← 独立主机名
+  用户     : <span class="warn">wuying</span>  (50ms)              ← 沙箱专用用户
+  CPU      : <span class="pass">4</span>  (50ms)
+  磁盘     : /dev/vda3  <span class="pass">99G</span>  24G  71G  (51ms)
+  OS       : <span class="pass">Ubuntu 22.04.5 LTS</span>  (51ms)
+
+<span class="info">[3] Python 代码执行 — 在沙箱内运行</span>
+<span class="dim">----------------------------------------</span>
+  代码在沙箱 VM 中执行，耗时 <span class="pass">70ms</span>:
+    Python 3.10
+    Found <span class="pass">168 primes</span> under 1000
+    Pi = 3.141592653589793
+
+<span class="info">[4] 文件操作 — 沙箱内的文件系统</span>
+<span class="dim">----------------------------------------</span>
+  写入: /tmp/agent_test.txt (77 chars, <span class="pass">41ms</span>)
+  读取: 成功  (<span class="pass">41ms</span>)
+  说明: 文件只存在于沙箱 VM 中，销毁后消失
+
+<span class="info">[5] 网络访问 — 沙箱内可联网</span>
+<span class="dim">----------------------------------------</span>
+  curl baidu.com: <span class="pass">HTTP 200</span> in 0.119s  (171ms)
+
+<span class="info">[6] 云电脑 VNC URL — 可视化桌面</span>
+<span class="dim">----------------------------------------</span>
+  VNC URL: <span class="pass">https://wy.aliyun.com/mcp.html?authcode=acv2cVdv...</span>
+  说明: 浏览器打开可看到完整 Ubuntu 桌面 🖥️
+
+<span class="info">[7] MCP 工具列表</span>
+<span class="dim">----------------------------------------</span>
+  预装工具数: <span class="pass">88</span> 个 (Browser/Shell/File/Mobile 等)
+
+<span class="info">[8] 销毁沙箱</span>
+<span class="dim">----------------------------------------</span>
+  <span class="pass">[OK]</span> Session 已销毁 (<span class="warn">1308ms</span>)
+  说明: 沙箱内所有数据全部清除</div>
+  </div>
+
+  <div class="arch-diagram">  沙箱在 Agent 架构中的位置：
+
+  User: "分析这个 CSV"
+    ↓
+  ┌─ 编排层 ─────────────────────────────────┐
+  │  LLM 决定 "写 pandas 代码分析"           │
+  └────────────────┬─────────────────────────┘
+                   ↓ tool_call
+  ┌─ 运行时 ───────┴─────────────────────────┐
+  │  Agent 进程调用沙箱 API                   │
+  └────────────────┬─────────────────────────┘
+                   ↓ API call
+  ┌─ 沙箱 (AgentBay VM) ────────────────────┐
+  │  pandas 代码在这里执行                    │
+  │  即使 rm -rf / 也不影响宿主               │
+  │  执行完毕，沙箱销毁，数据清除             │
+  └──────────────────────────────────────────┘</div>
+</div>
+
+<!-- ========== Demo 02: 编排层 ========== -->
+<div class="demo-section" id="demo-orch">
+  <div class="demo-header">
+    <h2>Demo 02: 编排层 — ReAct 编排循环</h2>
+    <span class="layer-tag" style="background:#1f6feb;color:#fff">编排层 / Orchestration</span>
+  </div>
+
+  <div class="explain-box">
+    <h3>什么是编排层？</h3>
+    <p>编排层 = Agent 的"大脑"，决定<span class="highlight">做什么、用什么工具、按什么顺序</span>。</p>
+    <p style="margin-top:8px">核心模式是 <span class="highlight">ReAct 循环</span>：Think → Tool Call → Observe → Repeat。本 Demo 用 MockLLM 演示编排结构（因环境内 LLM API 不可用）。</p>
+  </div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot red"></div>
+      <div class="terminal-dot yellow"></div>
+      <div class="terminal-dot green"></div>
+      <span class="terminal-title">$ python3 demos/02_orchestration/demo_orchestration_loop.py</span>
+    </div>
+    <div class="terminal-body"><span class="title-line">======================================================================
+  Demo 02: Agent 编排层 — ReAct 编排循环
+  对应层: 编排层 / Orchestration
+======================================================================</span>
+
+<span class="dim">────────────────────────────────────────────────────────────</span>
+  <span class="info">任务 1/4</span>
+
+  <span class="warn">[USER]</span> 计算 15 * 37 + 12 等于多少
+  <span class="info">[THINK]</span> 步骤 1: 需要调用工具 'calculator'
+  <span class="pass">[TOOL_CALL]</span> calculator({'expression': '15 * 37 + 12'})
+  [OBSERVE] 结果 (0ms): <span class="pass">567</span>
+  <span class="pass">[ANSWER]</span> 基于工具调用结果，任务完成。结果: 567
+
+<span class="dim">────────────────────────────────────────────────────────────</span>
+  <span class="info">任务 3/4</span>
+
+  <span class="warn">[USER]</span> 搜索北京今天天气怎么样
+  <span class="info">[THINK]</span> 步骤 1: 需要调用工具 'web_search'
+  <span class="pass">[TOOL_CALL]</span> web_search({'query': '搜索北京今天天气怎么样'})
+  [OBSERVE] 结果: <span class="pass">北京今天晴，气温 28°C，湿度 45%</span>
+  <span class="pass">[ANSWER]</span> 基于工具调用结果，任务完成。
+
+<span class="dim">────────────────────────────────────────────────────────────</span>
+  <span class="info">任务 4/4</span>
+
+  <span class="warn">[USER]</span> 读取 /etc/hostname 文件的内容
+  <span class="info">[THINK]</span> 步骤 1: 需要调用工具 'read_file'
+  <span class="pass">[TOOL_CALL]</span> read_file({'path': '/etc/hostname'})
+  [OBSERVE] 结果: <span class="pass">sessionf2ec2429c2f74ad0ac-zz2pk</span>
+  <span class="pass">[ANSWER]</span> 任务完成。</div>
+  </div>
+
+  <div class="arch-diagram">  编排层 vs 运行时 vs 沙箱 — 三层区分：
+
+  ┌─ 编排层 (Orchestration) ← 本 Demo ──────┐
+  │  User → LLM 决策 → 选择工具 → 综合结果   │
+  │  产品: LangGraph, CrewAI, Agents SDK     │
+  ├──────────────────────────────────────────┤
+  │ 运行时 (Runtime) ← Python 进程本身       │
+  │  Agent 代码跑在哪？本地/Lambda/K8s       │
+  ├──────────────────────────────────────────┤
+  │ 沙箱 (Sandbox) ← Demo 01                │
+  │  工具执行在哪？E2B/AgentBay 隔离 VM      │
+  └──────────────────────────────────────────┘</div>
+</div>
+
+<!-- ========== Demo 03: MCP 协议 ========== -->
+<div class="demo-section" id="demo-mcp">
+  <div class="demo-header">
+    <h2>Demo 03: MCP 协议 — Server + Client 交互</h2>
+    <span class="layer-tag" style="background:#238636;color:#fff">协议层 / Protocols</span>
+  </div>
+
+  <div class="explain-box">
+    <h3>什么是 MCP？</h3>
+    <p>MCP (Model Context Protocol) 是 Anthropic 发布的开放协议，定位：Agent ↔ 工具的<span class="highlight">标准化接口</span>。</p>
+    <p style="margin-top:8px">类比 USB 接口 — 让任何 Agent 接入任何工具。已被 AWS GA 采用，有数千个 MCP Server 生态。</p>
+  </div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot red"></div>
+      <div class="terminal-dot yellow"></div>
+      <div class="terminal-dot green"></div>
+      <span class="terminal-title">$ python3 demos/03_mcp_protocol/mcp_client.py</span>
+    </div>
+    <div class="terminal-body"><span class="title-line">======================================================================
+  Demo 03: MCP 协议层 — Server + Client 交互
+  对应层: 协议层 / Protocols
+======================================================================</span>
+
+<span class="info">[1] 连接 MCP Server (stdio 传输)</span>
+<span class="dim">----------------------------------------</span>
+  <span class="pass">[OK]</span> MCP Session 建立成功
+  传输方式: stdio (Server 作为子进程)
+
+<span class="info">[2] 工具发现 (list_tools)</span>
+<span class="dim">----------------------------------------</span>
+  发现 <span class="pass">3</span> 个工具:
+    - <span class="warn">calculator</span>: 安全的数学计算器  参数: ['expression']
+    - <span class="warn">get_weather</span>: 获取城市天气    参数: ['city']
+    - <span class="warn">list_directory</span>: 列出目录文件  参数: ['path']
+
+<span class="info">[3] 工具调用 (call_tool)</span>
+<span class="dim">----------------------------------------</span>
+
+  calculator({"expression": "2 ** 10 + math.sqrt(144)"})
+    → 计算结果: <span class="pass">1036.0</span>
+
+  calculator({"expression": "math.pi * 3.5 ** 2"})
+    → 计算结果: <span class="pass">38.48451000647496</span>
+
+  get_weather({"city": "北京"})
+    → <span class="pass">{"city":"北京","temp":28,"condition":"晴","humidity":45}</span>
+
+  get_weather({"city": "上海"})
+    → <span class="pass">{"city":"上海","temp":32,"condition":"多云","humidity":72}</span>
+
+  list_directory({"path": "/tmp"})
+    → 目录内容: node-compile-cache, install-loongcollector.sh...
+
+  list_directory({"path": "/etc/secret"})
+    → <span class="fail">安全限制: 只允许访问 ['/tmp', '/home']</span></div>
+  </div>
+
+  <div class="arch-diagram">  MCP 协议交互流程：
+
+  Agent (LLM)                         MCP Server (工具)
+  ┌──────────┐                        ┌──────────────┐
+  │          │ ── list_tools ───────→ │              │
+  │  Claude  │ ←── 3 个工具定义 ──── │  calculator   │
+  │  GPT-4   │                        │  get_weather  │
+  │          │ ── call_tool ────────→ │  list_dir     │
+  │          │ ←── 执行结果 ──────── │              │
+  └──────────┘    JSON-RPC/stdio      └──────────────┘
+
+  MCP vs 其他协议：
+  MCP = Agent ↔ 工具（最广泛，AWS GA）
+  A2A = Agent ↔ Agent（Google，互补）
+  ACP = 企业 Agent 通信（IBM）
+  ASL = Agent 安全链路（蚂蚁）</div>
+</div>
+
+<!-- ========== Demo 04: 可观测性 ========== -->
+<div class="demo-section" id="demo-obs">
+  <div class="demo-header">
+    <h2>Demo 04: 可观测性 — OpenTelemetry Agent 追踪</h2>
+    <span class="layer-tag" style="background:#bf8700;color:#fff">可观测性 / Observability</span>
+  </div>
+
+  <div class="explain-box">
+    <h3>为什么需要可观测性？</h3>
+    <p>Agent 是<span class="highlight">多步推理系统</span> — 每次 LLM 调用、每次工具调用都是黑盒。可观测性让你看到：调用链、延迟、Token 用量、错误点。</p>
+  </div>
+
+  <div class="key-findings">
+    <div class="key-card"><div class="metric">4</div><div class="label">LLM 调用次数</div></div>
+    <div class="key-card"><div class="metric">2</div><div class="label">工具调用次数</div></div>
+    <div class="key-card"><div class="metric">560</div><div class="label">总 Token 消耗</div></div>
+    <div class="key-card"><div class="metric">81ms</div><div class="label">平均 LLM 延迟</div></div>
+  </div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot red"></div>
+      <div class="terminal-dot yellow"></div>
+      <div class="terminal-dot green"></div>
+      <span class="terminal-title">$ python3 demos/04_observability/demo_observability.py</span>
+    </div>
+    <div class="terminal-body"><span class="title-line">======================================================================
+  Demo 04: 可观测性层 — OpenTelemetry Agent 追踪
+======================================================================</span>
+
+<span class="info">[1] 执行 Agent 任务 (带 Trace)</span>
+<span class="dim">----------------------------------------</span>
+  任务: 计算 15 * 37 + 12
+  结果: <span class="pass">The answer is 567.</span>
+
+  任务: 搜索北京天气并汇总
+  结果: <span class="pass">The answer is 567.</span>
+
+<span class="info">[2] 调用链追踪 (Trace Tree)</span>
+<span class="dim">----------------------------------------</span>
+  <span class="warn">agent.run</span> (263ms)
+  │ ├─ <span class="info">llm.call</span> (53ms) [model=claude-sonnet-4-6] [tokens: 80→20]
+  │ ├─ <span class="pass">tool.call</span> (64ms) [tool=calculator] → 567
+  │ ├─ <span class="info">llm.call</span> (145ms) [model=claude-sonnet-4-6] [tokens: 150→30]
+  <span class="warn">agent.run</span> (182ms)
+  │ ├─ <span class="info">llm.call</span> (55ms) [model=claude-sonnet-4-6] [tokens: 80→20]
+  │ ├─ <span class="pass">tool.call</span> (54ms) [tool=calculator] → 567
+  │ ├─ <span class="info">llm.call</span> (72ms) [model=claude-sonnet-4-6] [tokens: 150→30]
+
+<span class="info">[3] 指标汇总</span>
+<span class="dim">----------------------------------------</span>
+  Agent 运行总数:  <span class="pass">2</span>
+  LLM 调用次数:    <span class="warn">4</span>
+  工具调用次数:    <span class="pass">2</span>
+  总 Token 消耗:   <span class="warn">560</span>
+  总执行时间:      445ms
+  平均 LLM 延迟:   81ms</div>
+  </div>
+
+  <div class="arch-diagram">  Trace 树结构（类似 Braintrust / Langfuse 的 Dashboard）：
+
+  agent.run ──────────────────────────── 350ms
+  │
+  ├─ llm.call [claude-sonnet-4-6] ──── 120ms
+  │    tokens_in=150, tokens_out=30
+  │
+  ├─ tool.call [calculator] ─────────── 45ms
+  │    expression="15*37+12" → "567"
+  │
+  └─ llm.call [claude-sonnet-4-6] ──── 100ms
+       tokens_in=80, tokens_out=20
+
+  可观测性产品：
+  Braintrust ($80M B轮) · Langfuse (被 ClickHouse 收购)
+  LangSmith (LangChain) · Helicone (被 Mintlify 收购)</div>
+</div>
+
+<!-- ========== Demo 05: 安全层 ========== -->
+<div class="demo-section" id="demo-auth">
+  <div class="demo-header">
+    <h2>Demo 05: 安全层 — Auth & 工具授权</h2>
+    <span class="layer-tag" style="background:#8250df;color:#fff">安全层 / Auth & Gateway</span>
+  </div>
+
+  <div class="explain-box">
+    <h3>Agent 安全网关</h3>
+    <p>在 Agent 和工具之间加一道<span class="highlight">安全网关</span>：白/黑名单、路径校验、速率限制、审计日志。</p>
+    <p style="margin-top:8px">这就是 <span class="highlight">Arcade.dev ($60M A轮)</span> 在做的事 — 给 Agent 做工具级别的 OAuth 授权。</p>
+  </div>
+
+  <div class="key-findings">
+    <div class="key-card"><div class="metric">9</div><div class="label">总工具调用次数</div></div>
+    <div class="key-card"><div class="metric" style="color:#9ece6a">5</div><div class="label">允许通过</div></div>
+    <div class="key-card"><div class="metric" style="color:#f7768e">4</div><div class="label">拒绝拦截</div></div>
+    <div class="key-card"><div class="metric">3/min</div><div class="label">Shell 速率限制</div></div>
+  </div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot red"></div>
+      <div class="terminal-dot yellow"></div>
+      <div class="terminal-dot green"></div>
+      <span class="terminal-title">$ python3 demos/05_auth/demo_auth_patterns.py</span>
+    </div>
+    <div class="terminal-body"><span class="title-line">======================================================================
+  Demo 05: Agent 安全层 — Auth & 工具授权
+======================================================================</span>
+
+<span class="info">[1] API Key 安全管理</span>
+<span class="dim">----------------------------------------</span>
+  AgentBay Key: akm-****b6d7  <span class="dim">(脱敏存储)</span>
+  OpenAI Key:   sk-p****mnop
+  验证正确Key:  <span class="pass">True</span>
+  验证错误Key:  <span class="fail">False</span>
+
+<span class="info">[2] 工具授权策略</span>
+<span class="dim">----------------------------------------</span>
+  白名单: ['calculator', 'execute_shell', 'read_file']
+  黑名单: ['delete_file']
+  路径限制: ['/tmp/', '/home/admin/workspace/']
+  速率限制: execute_shell → 3次/分钟
+
+<span class="info">[3] 安全网关 — 工具调用拦截</span>
+<span class="dim">----------------------------------------</span>
+  <span class="pass">[PASS]</span> 白名单工具 + 合法参数
+         calculator('15 * 37 + 12') → <span class="pass">567</span>
+
+  <span class="pass">[PASS]</span> 白名单 + 允许路径
+         read_file('/tmp/test.txt')
+
+  <span class="fail">[DENY]</span> 路径不在允许范围
+         read_file('<span class="fail">/etc/shadow</span>') → 路径越权拦截
+
+  <span class="fail">[DENY]</span> 工具在黑名单中
+         <span class="fail">delete_file</span>('/tmp/important.txt') → 黑名单拦截
+
+  <span class="fail">[DENY]</span> 工具不在白名单中
+         <span class="fail">hack_system</span>({'target': 'root'}) → 未知工具拦截
+
+  <span class="pass">[PASS]</span> execute_shell #1  <span class="dim">速率: 1/3</span>
+  <span class="pass">[PASS]</span> execute_shell #2  <span class="dim">速率: 2/3</span>
+  <span class="pass">[PASS]</span> execute_shell #3  <span class="dim">速率: 3/3</span>
+
+  <span class="fail">[DENY]</span> 超过速率限制 (3/min)
+         execute_shell('<span class="fail">rm -rf /</span>') → <span class="fail">速率限制拦截</span>
+
+<span class="info">[4] 审计日志</span>
+<span class="dim">----------------------------------------</span>
+  <span class="pass">[OK]</span> calculator      → 执行成功
+  <span class="pass">[OK]</span> read_file       → 执行成功
+  <span class="fail">[NO]</span> read_file       → 路径越权
+  <span class="fail">[NO]</span> delete_file     → 黑名单
+  <span class="fail">[NO]</span> hack_system     → 未授权
+  <span class="pass">[OK]</span> execute_shell   → 执行成功 ×3
+  <span class="fail">[NO]</span> execute_shell   → 速率限制</div>
+  </div>
+
+  <div class="arch-diagram">  安全网关架构：
+
+  Agent (LLM)          安全网关                工具
+  ┌────────┐  call  ┌──────────────┐  OK   ┌──────────┐
+  │        │ ─────→ │ 1. 白/黑名单  │ ────→ │calculator│
+  │  GPT-4 │        │ 2. 路径校验   │       │read_file │
+  │ Claude │ ←───── │ 3. 速率限制   │ ←──── │shell_exec│
+  │        │ result │ 4. 审计日志   │       └──────────┘
+  └────────┘        └──────┬───────┘
+                           │ DENY
+                      返回拒绝原因
+                      记录审计日志</div>
+</div>
+
+<!-- ========== Demo 07: 全栈 ========== -->
+<div class="demo-section" id="demo-e2e">
+  <div class="demo-header">
+    <h2>Demo 07: 全栈 Agent — 编排 + 安全 + 沙箱 + 追踪</h2>
+    <span class="layer-tag" style="background: linear-gradient(90deg, #1f6feb, #da3633, #bf8700, #8250df); color:#fff">全栈组合</span>
+  </div>
+
+  <div class="explain-box">
+    <h3>全栈组合</h3>
+    <p>将<span class="highlight">编排 + 安全 + 沙箱 + 可观测性</span>四层串联。在 AgentBay 云端 VM 中执行多步任务：生成 Fibonacci → 写文件 → 验证 → 统计 → 尝试删除（被拦截）。</p>
+  </div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot red"></div>
+      <div class="terminal-dot yellow"></div>
+      <div class="terminal-dot green"></div>
+      <span class="terminal-title">$ python3 demos/07_agent_e2e/demo_agent_e2e.py</span>
+    </div>
+    <div class="terminal-body"><span class="title-line">======================================================================
+  Demo 07: 全栈 Agent — 编排 + 安全 + 沙箱 + 追踪
+======================================================================</span>
+
+  本 Demo 将所有基础设施层串联起来：
+  1. <span class="info">编排层</span>: 按预设步骤执行任务
+  2. <span class="fail">安全层</span>: 检查每个工具调用是否授权
+  3. <span class="warn">沙箱层</span>: 在 AgentBay 云端 VM 中执行
+  4. <span class="pass">可观测性</span>: OpenTelemetry 追踪全链路
+
+<span class="info">[0] 初始化沙箱</span>
+<span class="dim">----------------------------------------</span>
+  <span class="pass">[OK]</span> Session: s-04pomilkbjhckn18q
+
+<span class="info">[1] 多步任务执行</span>
+<span class="dim">----------------------------------------</span>
+
+  <span class="info">Step 1:</span> 生成 Fibonacci 数列
+  <span class="pass">[OK]</span> sandbox_shell → <span class="pass">[0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181]</span> (253ms)
+
+  <span class="info">Step 2:</span> 将结果写入文件
+  <span class="pass">[OK]</span> sandbox_write_file → 写入 84 字符到 /tmp/fibonacci.txt (43ms)
+
+  <span class="info">Step 3:</span> 验证文件已写入
+  <span class="pass">[OK]</span> sandbox_read_file → 读取成功 (39ms)
+
+  <span class="info">Step 4:</span> 统计文件字节数
+  <span class="pass">[OK]</span> sandbox_shell → 84 /tmp/fibonacci.txt  Done! (47ms)
+
+  <span class="fail">Step 5:</span> 尝试危险命令
+  <span class="fail">[DENY]</span> 安全层拦截: 危险命令被拦截: '<span class="fail">rm -rf</span>'
+
+<span class="info">[2] 全链路追踪 (OpenTelemetry)</span>
+<span class="dim">----------------------------------------</span>
+  <span class="warn">agent.run</span> (384ms)
+  │ ├─ <span class="fail">auth.check</span> (0ms) auth=<span class="fail">DENY</span>         ← Step 5 被拦截
+  │ ├─ <span class="pass">tool.execute</span> (47ms) [sandbox_shell]     wc -c
+  │ ├─ <span class="pass">auth.check</span> (0ms) auth=<span class="pass">ALLOW</span>
+  │ ├─ <span class="pass">tool.execute</span> (39ms) [sandbox_read_file]
+  │ ├─ <span class="pass">auth.check</span> (0ms) auth=<span class="pass">ALLOW</span>
+  │ ├─ <span class="pass">tool.execute</span> (43ms) [sandbox_write_file]
+  │ ├─ <span class="pass">auth.check</span> (0ms) auth=<span class="pass">ALLOW</span>
+  │ ├─ <span class="pass">tool.execute</span> (253ms) [sandbox_shell]    fibonacci
+  │ ├─ <span class="pass">auth.check</span> (0ms) auth=<span class="pass">ALLOW</span>
+  <span class="warn">sandbox.create</span> (1612ms)                       ← 冷启动
+
+<span class="info">[3] 清理沙箱</span>
+  <span class="pass">[OK]</span> Session 已销毁</div>
+  </div>
+
+  <div class="arch-diagram">  全栈调用链：
+
+  User Task: "生成 Fibonacci 并写文件"
+    ↓
+  ┌─── 编排层 ──────────────────────────────┐
+  │  Step 1→2→3→4→5 (Step 5 被安全层拦截)   │
+  └────────────┬────────────────────────────┘
+               ↓ tool_call
+  ┌─── 安全层 ─┴────────────────────────────┐
+  │  白名单 → 危险命令检测 → ALLOW / DENY   │
+  └────────────┬────────────────────────────┘
+               ↓ (if ALLOW)
+  ┌─── 沙箱 (AgentBay) ────────────────────┐
+  │  Ubuntu 22.04 VM, 4C/7G/99G            │
+  │  Python/Shell 在 VM 内执行              │
+  └────────────┬────────────────────────────┘
+               ↓
+  ┌─── 可观测性 (OpenTelemetry) ───────────┐
+  │  每个操作 → Span → Trace Tree          │
+  │  真实场景: 上报 Braintrust / Langfuse   │
+  └─────────────────────────────────────────┘</div>
+</div>
+
+<!-- ========== 产品架构对比 ========== -->
+<div class="demo-section" id="demo-arch">
+  <div class="demo-header">
+    <h2>产品架构拆解 — Codex vs Claude Code vs Devin</h2>
+    <span class="layer-tag" style="background:#21262d;color:#58a6ff;border:1px solid #30363d">架构对比</span>
+  </div>
+
+  <div class="explain-box">
+    <h3>同样的三层，不同的组合方式</h3>
+    <p>编排、运行时、沙箱是三个独立的层，但不同产品的<span class="highlight">组合方式完全不同</span>。</p>
+  </div>
+
+  <table class="product-compare">
+    <tr><th>维度</th><th>OpenAI Codex</th><th>Claude Code</th><th>Devin ($4.5B)</th></tr>
+    <tr><td><strong>编排层</strong></td><td>OpenAI Agents SDK</td><td>Claude 模型推理 + 工具框架</td><td>自研多 Agent 编排引擎</td></tr>
+    <tr><td><strong>运行时</strong></td><td>Ona (Gitpod) VM</td><td>本地 CLI 进程 (Node.js)</td><td>自建云 VM</td></tr>
+    <tr><td><strong>沙箱</strong></td><td>= Runtime (合并)</td><td>无独立沙箱 / E2B</td><td>= Runtime (合并)</td></tr>
+    <tr><td><strong>Runtime=Sandbox?</strong></td><td style="color:#9ece6a">是 (Agent 跑在沙箱内)</td><td style="color:#f7768e">否 (分离或无沙箱)</td><td style="color:#9ece6a">是 (全自建)</td></tr>
+    <tr><td><strong>持久化</strong></td><td style="color:#9ece6a">✅ (收购 Ona 解决)</td><td style="color:#f7768e">❌ (依赖本地)</td><td style="color:#9ece6a">✅</td></tr>
+    <tr><td><strong>Browser 内置</strong></td><td style="color:#f7768e">❌</td><td style="color:#f7768e">❌</td><td style="color:#9ece6a">✅</td></tr>
+    <tr><td><strong>成本</strong></td><td>高 (收购)</td><td>低 (无沙箱)</td><td>最高 (全自建)</td></tr>
+  </table>
+
+  <div class="arch-diagram" style="color: #7aa2f7;">  Codex 架构 — Runtime 与 Sandbox 合并：
+
+  ┌── ① 编排层 ──────────────────┐
+  │  OpenAI Agents SDK           │
+  └──────────┬───────────────────┘
+             ↓
+  ┌── ② Runtime + ③ Sandbox ────┐
+  │  Ona (Gitpod) 持久化 VM      │
+  │  Agent 进程 + 代码执行        │
+  │  都在同一台 VM 里             │
+  └──────────────────────────────┘</div>
+
+  <div class="arch-diagram" style="color: #bb9af7;">  Claude Code 架构 — Runtime 与 Sandbox 分离：
+
+  ┌── ① 编排层 ──────────────────┐
+  │  Claude 模型推理              │
+  └──────────┬───────────────────┘
+             ↓
+  ┌── ② Runtime ─────────────────┐
+  │  CLI 进程 (你的电脑 / 云端)   │
+  └──────────┬───────────────────┘
+             ↓ (可选)
+  ┌── ③ Sandbox ─────────────────┐
+  │  无 / E2B / OpenSandbox       │
+  │  用权限控制代替隔离            │
+  └──────────────────────────────┘</div>
+
+  <div class="arch-diagram" style="color: #9ece6a;">  Devin 架构 — 三层全自建：
+
+  ┌── ① 编排层 ──────────────────┐
+  │  自研多 Agent 引擎            │
+  └──────────┬───────────────────┘
+             ↓
+  ┌── ② Runtime + ③ Sandbox ────┐
+  │  每任务一台独立 VM            │
+  │  ├── Shell (命令行)           │
+  │  ├── Browser (Chromium)       │
+  │  └── Editor (VS Code 风格)   │
+  │  可并行多 VM                  │
+  └──────────────────────────────┘</div>
+</div>
+
+</div><!-- container -->
+
+<div class="footer">
+  AI Agent 基础设施分层 Demo · 实测数据来源: AgentBay cn-hangzhou 区域 · 2026-06-16<br>
+  GitHub: <a href="https://github.com/chnshanerao/sandbox_research" style="color:#58a6ff">chnshanerao/sandbox_research</a>
+</div>
+
+<script>
+function showDemo(name) {
+  document.querySelectorAll('.demo-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.demo-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('demo-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>
