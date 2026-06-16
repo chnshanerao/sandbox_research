@@ -1,0 +1,76 @@
+{
+  "timestamp": "2026-06-15 16:48:13",
+  "rounds": 3,
+  "opensandbox": {
+    "name": "OpenSandbox (本地Docker)",
+    "rounds": [
+      {
+        "create": 4.623405933380127,
+        "command": 1.0103166103363037,
+        "command_output": "hello\nLinux sessionf2ec2429c2f74ad0ac-zz2pk 5.10.134-013.8.kangaroo.al8.x86_64 #1 SMP Thu Feb 5 07:08:02 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux\nMon Jun 15 04:47:49 PM CST 2026",
+        "code": 1.0249974727630615,
+        "code_output": "",
+        "filesystem": 0.004861116409301758,
+        "fs_match": true,
+        "destroy": 0.4262125492095947
+      },
+      {
+        "create": 3.6648638248443604,
+        "command": 1.0079545974731445,
+        "command_output": "hello\nLinux sessionf2ec2429c2f74ad0ac-zz2pk 5.10.134-013.8.kangaroo.al8.x86_64 #1 SMP Thu Feb 5 07:08:02 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux\nMon Jun 15 04:47:55 PM CST 2026",
+        "code": 1.023902416229248,
+        "code_output": "",
+        "filesystem": 0.005708217620849609,
+        "fs_match": true,
+        "destroy": 0.404918909072876
+      },
+      {
+        "create": 5.021147966384888,
+        "command": 1.00795578956604,
+        "command_output": "hello\nLinux sessionf2ec2429c2f74ad0ac-zz2pk 5.10.134-013.8.kangaroo.al8.x86_64 #1 SMP Thu Feb 5 07:08:02 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux\nMon Jun 15 04:48:02 PM CST 2026",
+        "code": 1.024010419845581,
+        "code_output": "",
+        "filesystem": 0.0038323402404785156,
+        "fs_match": true,
+        "destroy": 0.42877745628356934
+      }
+    ],
+    "errors": []
+  },
+  "agentbay": {
+    "name": "AgentBay (云端PaaS)",
+    "rounds": [
+      {
+        "create": 0.949542760848999,
+        "command": 0.17858004570007324,
+        "command_output": "hello\nLinux arc-ai-590bd5dcca644662907e6f9b61 5.10.134-18.0.11.lifsea8.x86_64 #1 SMP Tue May 19 22:03:35 CST 2026 x86_64 GNU/Linux\n2026年 06月 15日 星期一 16:48:06 CST",
+        "code": 0.14076519012451172,
+        "code_output": "fib(100000): 20899 digits in 0.071s\nprimes < 10000: 1229\nBENCHMARK_OK",
+        "filesystem": 0.09418964385986328,
+        "fs_match": false,
+        "destroy": 1.3214282989501953
+      },
+      {
+        "create": 0.7743864059448242,
+        "command": 0.17325520515441895,
+        "command_output": "hello\nLinux arc-ai-fd3c5e64701d480eac02f54791 5.10.134-18.0.11.lifsea8.x86_64 #1 SMP Tue May 19 22:03:35 CST 2026 x86_64 GNU/Linux\n2026年 06月 15日 星期一 16:48:09 CST",
+        "code": 0.13196277618408203,
+        "code_output": "fib(100000): 20899 digits in 0.070s\nprimes < 10000: 1229\nBENCHMARK_OK",
+        "filesystem": 0.08873724937438965,
+        "fs_match": false,
+        "destroy": 1.2981972694396973
+      },
+      {
+        "create": 0.7232275009155273,
+        "command": 0.17893290519714355,
+        "command_output": "hello\nLinux arc-ai-f39d3b81d6144bda9c12393bf2 5.10.134-18.0.11.lifsea8.x86_64 #1 SMP Tue May 19 22:03:35 CST 2026 x86_64 GNU/Linux\n2026年 06月 15日 星期一 16:48:11 CST",
+        "code": 0.16578912734985352,
+        "code_output": "fib(100000): 20899 digits in 0.093s\nprimes < 10000: 1229\nBENCHMARK_OK",
+        "filesystem": 0.09603691101074219,
+        "fs_match": false,
+        "destroy": 1.2991235256195068
+      }
+    ],
+    "errors": []
+  }
+}
