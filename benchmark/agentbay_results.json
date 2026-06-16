@@ -1,0 +1,95 @@
+{
+  "platform": "AgentBay (无影)",
+  "tests": [
+    {
+      "name": "SDK初始化",
+      "status": "pass",
+      "duration_ms": 1.2,
+      "detail": "AgentBay SDK initialized"
+    },
+    {
+      "name": "冷启动(Session创建)",
+      "status": "pass",
+      "duration_ms": 1780.8,
+      "detail": "session_id=s-04pomkixfx35gkhzs, image=computer-use-ubuntu-2204"
+    },
+    {
+      "name": "Shell命令执行",
+      "status": "pass",
+      "duration_ms": 226.8,
+      "detail": "<agentbay._common.models.command.CommandResult object at 0x7fb0f59f3830>"
+    },
+    {
+      "name": "Python代码执行",
+      "status": "pass",
+      "duration_ms": 50.1,
+      "detail": "<agentbay._common.models.command.CommandResult object at 0x7fb0f5973200>"
+    },
+    {
+      "name": "文件写入",
+      "status": "pass",
+      "duration_ms": 49.2,
+      "detail": "wrote 73 chars to /tmp/benchmark_test.txt"
+    },
+    {
+      "name": "文件读取",
+      "status": "pass",
+      "duration_ms": 50.7,
+      "detail": "read back: <agentbay._common.models.filesystem.FileContentResult object at 0x7fb0f5729490>"
+    },
+    {
+      "name": "网络访问(curl)",
+      "status": "pass",
+      "duration_ms": 172.5,
+      "detail": "<agentbay._common.models.command.CommandResult object at 0x7fb0f5dd2600>"
+    },
+    {
+      "name": "计算密集型(素数)",
+      "status": "pass",
+      "duration_ms": 50.7,
+      "detail": "<agentbay._common.models.command.CommandResult object at 0x7fb0f6b5d4c0>"
+    },
+    {
+      "name": "系统信息",
+      "status": "pass",
+      "duration_ms": 60.3,
+      "detail": "<agentbay._common.models.command.CommandResult object at 0x7fb0f5843620>"
+    },
+    {
+      "name": "pip包安装(requests)",
+      "status": "pass",
+      "duration_ms": 1954.2,
+      "detail": "<agentbay._common.models.command.CommandResult object at 0x7fb0f599e660>"
+    },
+    {
+      "name": "多命令管道",
+      "status": "pass",
+      "duration_ms": 49.8,
+      "detail": "<agentbay._common.models.command.CommandResult object at 0x7fb0f5b3ec60>"
+    },
+    {
+      "name": "Session状态查询",
+      "status": "pass",
+      "duration_ms": 80.7,
+      "detail": "status=<agentbay._sync.session.SessionStatusResult object at 0x7fb0f5728ef0>"
+    },
+    {
+      "name": "Resource URL获取",
+      "status": "pass",
+      "duration_ms": 0,
+      "detail": "url=https://wy.aliyun.com/mcp.html?authcode=acv2PzbOszHUkIs0+Or4kOb77dHFtmpAh5Drohp8..."
+    },
+    {
+      "name": "MCP工具列表",
+      "status": "fail",
+      "duration_ms": 257.6,
+      "detail": "'McpToolsResult' object is not iterable"
+    },
+    {
+      "name": "Session清理",
+      "status": "pass",
+      "duration_ms": 1315.2,
+      "detail": "session deleted"
+    }
+  ]
+}
